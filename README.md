@@ -2,7 +2,7 @@ php-resque: PHP Resque Worker (and Enqueue) [![Build Status](https://secure.trav
 ===========================================
 
 Resque is a Redis-backed library for creating background jobs, placing
-those jobs on multiple queues, and processing them later.
+those jobs on one or more queues, and processing them later.
 
 ## Background ##
 
@@ -24,7 +24,7 @@ The PHP port provides much the same features as the Ruby version:
 
 * Workers can be distributed between multiple machines
 * Includes support for priorities (queues)
-* Resilient to memory leaks (fork)
+* Resilient to memory leaks (forking)
 * Expects failure
 
 It also supports the following additional features:
@@ -51,20 +51,24 @@ If you're not familiar with Composer, please see <http://getcomposer.org/>.
 
 1. Add php-resque to your application's composer.json.
 
-        {
-            ...
-            "require": {
-                "chrisboulton/php-resque": "1.2.x"
-            },
-            ...
-        }
+```json
+{
+    // ...
+    "require": {
+        "chrisboulton/php-resque": "1.2.x"	// Most recent tagged version
+    },
+    // ...
+}
+```
 
 2. Run `composer install`.
 
 3. If you haven't already, add the Composer autoload to your project's
    initialization file. (example)
 
-        require 'vendor/autoload.php';
+```sh
+require 'vendor/autoload.php';
+```
 
 ## Jobs ##
 
@@ -72,26 +76,30 @@ If you're not familiar with Composer, please see <http://getcomposer.org/>.
 
 Jobs are queued as follows:
 
-	// Required if redis is located elsewhere
-	Resque::setBackend('localhost:6379');
+```php
+// Required if redis is located elsewhere
+Resque::setBackend('localhost:6379');
 
-	$args = array(
-		'name' => 'Chris'
-	);
-	Resque::enqueue('default', 'My_Job', $args);
+$args = array(
+        'name' => 'Chris'
+        );
+Resque::enqueue('default', 'My_Job', $args);
+```
 
 ### Defining Jobs ###
 
-Each job should be in it's own class, and include a `perform` method.
+Each job should be in its own class, and include a `perform` method.
 
-	class My_Job
-	{
-		public function perform()
-		{
-			// Work work work
-			echo $this->args['name'];
-		}
-	}
+```php
+class My_Job
+{
+    public function perform()
+    {
+        // Work work work
+        echo $this->args['name'];
+    }
+}
+```
 
 When the job is run, the class will be instantiated and any arguments
 will be set as an array on the instantiated object, and are accessible
@@ -103,43 +111,50 @@ result in a job failing.
 
 Jobs can also have `setUp` and `tearDown` methods. If a `setUp` method
 is defined, it will be called before the `perform` method is run.
-The `tearDown` method if defined, will be called after the job finishes.
+The `tearDown` method, if defined, will be called after the job finishes.
 
-	class My_Job
-	{
-		public function setUp()
-		{
-			// ... Set up environment for this job
-		}
 
-		public function perform()
-		{
-			// .. Run job
-		}
+```php
+class My_Job
+{
+    public function setUp()
+    {
+        // ... Set up environment for this job
+    }
 
-		public function tearDown()
-		{
-			// ... Remove environment for this job
-		}
-	}
+    public function perform()
+    {
+        // .. Run job
+    }
+
+    public function tearDown()
+    {
+        // ... Remove environment for this job
+    }
+}
+```
 
 ### Tracking Job Statuses ###
 
 php-resque has the ability to perform basic status tracking of a queued
 job. The status information will allow you to check if a job is in the
-queue, currently being run, has finished, or failed.
+queue, is currently being run, has finished, or has failed.
 
 To track the status of a job, pass `true` as the fourth argument to
 `Resque::enqueue`. A token used for tracking the job status will be
 returned:
 
-	$token = Resque::enqueue('default', 'My_Job', $args, true);
-	echo $token;
+```php
+$token = Resque::enqueue('default', 'My_Job', $args, true);
+echo $token;
+```
 
 To fetch the status of a job:
 
-	$status = new Resque_Job_Status($token);
-	echo $status->get(); // Outputs the status
+```php
+$status = new Resque_Job_Status($token);
+echo $status->get(); // Outputs the status
+```
 
 Job statuses are defined as constants in the `Resque_Job_Status` class.
 Valid statuses include:
@@ -161,7 +176,7 @@ Workers work in the exact same way as the Ruby workers. For complete
 documentation on workers, see the original documentation.
 
 A basic "up-and-running" `bin/resque` file is included that sets up a
-running worker environment is included. (`vendor/bin/resque` when installed
+running worker environment. (`vendor/bin/resque` when installed
 via Composer)
 
 The exception to the similarities with the Ruby version of resque is
@@ -171,13 +186,17 @@ not having a single environment such as with Ruby, the PHP port makes
 
 To start a worker, it's very similar to the Ruby version:
 
-    $ QUEUE=file_serve php bin/resque
+```sh
+$ QUEUE=file_serve php bin/resque
+```
 
 It's your responsibility to tell the worker which file to include to get
 your application underway. You do so by setting the `APP_INCLUDE` environment
 variable:
 
-    $ QUEUE=file_serve APP_INCLUDE=../application/init.php php bin/resque
+```sh
+$ QUEUE=file_serve APP_INCLUDE=../application/init.php php bin/resque
+```
 
 *Pro tip: Using Composer? More than likely, you don't need to worry about
 `APP_INCLUDE`, because hopefully Composer is responsible for autoloading
@@ -186,14 +205,20 @@ your application too!*
 Getting your application underway also includes telling the worker your job
 classes, by means of either an autoloader or including them.
 
+Alternately, you can always `include('bin/resque')` from your application and
+skip setting `APP_INCLUDE` altogether.  Just be sure the various environment
+variables are set (`setenv`) before you do.
+
 ### Logging ###
 
 The port supports the same environment variables for logging to STDOUT.
 Setting `VERBOSE` will print basic debugging information and `VVERBOSE`
 will print detailed information.
 
-    $ VERBOSE QUEUE=file_serve bin/resque
-    $ VVERBOSE QUEUE=file_serve bin/resque
+```sh
+$ VERBOSE=1 QUEUE=file_serve bin/resque
+$ VVERBOSE=1 QUEUE=file_serve bin/resque
+```
 
 ### Priorities and Queue Lists ###
 
@@ -204,7 +229,9 @@ checked in.
 
 As per the original example:
 
-	$ QUEUE=file_serve,warm_cache bin/resque
+```sh
+$ QUEUE=file_serve,warm_cache bin/resque
+```
 
 The `file_serve` queue will always be checked for new jobs on each
 iteration before the `warm_cache` queue is checked.
@@ -214,21 +241,32 @@ iteration before the `warm_cache` queue is checked.
 All queues are supported in the same manner and processed in alphabetical
 order:
 
-    $ QUEUE=* bin/resque
+```sh
+$ QUEUE='*' bin/resque
+```
 
 ### Running Multiple Workers ###
 
-Multiple workers ca be launched and automatically worked by supplying
-the `COUNT` environment variable:
+Multiple workers can be launched simultaneously by supplying the `COUNT`
+environment variable:
 
-	$ COUNT=5 bin/resque
+```sh
+$ COUNT=5 bin/resque
+```
+
+Be aware, however, that each worker is its own fork, and the original process
+will shut down as soon as it has spawned `COUNT` forks.  If you need to keep
+track of your workers using an external application such as `monit`, you'll
+need to work around this limitation.
 
 ### Custom prefix ###
 
 When you have multiple apps using the same Redis database it is better to
 use a custom prefix to separate the Resque data:
 
-	$ PREFIX=my-app-name bin/resque
+```sh
+$ PREFIX=my-app-name bin/resque
+```
 
 ### Forking ###
 
@@ -245,9 +283,9 @@ the job.
 Signals also work on supported platforms exactly as in the Ruby
 version of Resque:
 
-* `QUIT` - Wait for child to finish processing then exit
-* `TERM` / `INT` - Immediately kill child then exit
-* `USR1` - Immediately kill child but don't exit
+* `QUIT` - Wait for job to finish processing then exit
+* `TERM` / `INT` - Immediately kill job then exit
+* `USR1` - Immediately kill job but don't exit
 * `USR2` - Pause worker, no new jobs will be processed
 * `CONT` - Resume worker.
 
@@ -259,11 +297,12 @@ and any forked children also set their process title with the job
 being run. This helps identify running processes on the server and
 their resque status.
 
-**PHP does not have this functionality by default.**
+**PHP does not have this functionality by default until 5.5.**
 
 A PECL module (<http://pecl.php.net/package/proctitle>) exists that
-adds this funcitonality to PHP, so if you'd like process titles updated,
-install the PECL module as well. php-resque will detect and use it.
+adds this functionality to PHP before 5.5, so if you'd like process
+titles updated, install the PECL module as well. php-resque will
+automatically detect and use it.
 
 ## Event/Hook System ##
 
@@ -274,14 +313,16 @@ You listen in on events (as listed below) by registering with `Resque_Event`
 and supplying a callback that you would like triggered when the event is
 raised:
 
-	Resque_Event::listen('eventName', [callback]);
+```sh
+Resque_Event::listen('eventName', [callback]);
+```
 
 `[callback]` may be anything in PHP that is callable by `call_user_func_array`:
 
 * A string with the name of a function
 * An array containing an object and method to call
 * An array containing an object and a static method to call
-* A closure (PHP 5.3)
+* A closure (PHP 5.3+)
 
 Events may pass arguments (documented below), so your callback should accept
 these arguments.
@@ -313,20 +354,20 @@ Called before php-resque forks to run a job. Argument passed contains the instan
 `Resque_Job` for the job about to be run.
 
 `beforeFork` is triggered in the **parent** process. Any changes made will be permanent
-for as long as the worker lives.
+for as long as the **worker** lives.
 
 #### afterFork ####
 
 Called after php-resque forks to run a job (but before the job is run). Argument
 passed contains the instance of `Resque_Job` for the job about to be run.
 
-`afterFork` is triggered in the child process after forking out to complete a job. Any
-changes made will only live as long as the job is being processed.
+`afterFork` is triggered in the **child** process after forking out to complete a job. Any
+changes made will only live as long as the **job** is being processed.
 
 #### beforePerform ####
 
 Called before the `setUp` and `perform` methods on a job are run. Argument passed
-contains the instance of `Resque_Job` about for the job about to be run.
+contains the instance of `Resque_Job` for the job about to be run.
 
 You can prevent execution of the job by throwing an exception of `Resque_Job_DontPerform`.
 Any other exceptions thrown will be treated as if they were thrown in a job, causing the
@@ -355,27 +396,59 @@ Called after a job has been queued using the `Resque::enqueue` method. Arguments
 * Class - string containing the name of scheduled job
 * Arguments - array of arguments supplied to the job
 * Queue - string containing the name of the queue the job was added to
+* ID - string containing the new token of the enqueued job
+
+## Step-By-Step ##
+
+For a more in-depth look at what php-resque does under the hood (without 
+needing to directly examine the code), have a look at `HOWITWORKS.md`.
 
 ## Contributors ##
 
-* chrisboulton
-* thedotedge
-* hobodave
-* scraton
-* KevBurnsJr
-* jmathai
-* dceballos
-* patrickbajao
-* andrewjshults
-* warezthebeef
-* d11wtq
-* hlegius
-* salimane
-* humancopy
-* pedroarnal
-* chaitanyakuber
-* maetl
-* Matt Heath
-* jjfrey
-* scragg0x
-* ruudk
+### Project Lead ###
+
+* @chrisboulton
+
+### Others ###
+
+* @acinader
+* @ajbonner
+* @andrewjshults
+* @atorres757
+* @benjisg
+* @cballou
+* @chaitanyakuber
+* @charly22
+* @CyrilMazur
+* @d11wtq
+* @danhunsaker
+* @dceballos
+* @ebernhardson
+* @hlegius
+* @hobodave
+* @humancopy
+* @JesseObrien
+* @jjfrey
+* @jmathai
+* @joshhawthorne
+* @KevBurnsJr
+* @lboynton
+* @maetl
+* @matteosister
+* @MattHeath
+* @mickhrmweb
+* @Olden
+* @patrickbajao
+* @pedroarnal
+* @ptrofimov
+* @rajibahmed
+* @richardkmiller
+* @Rockstar04
+* @ruudk
+* @salimane
+* @scragg0x
+* @scraton
+* @thedotedge
+* @tonypiper
+* @trimbletodd
+* @warezthebeef
